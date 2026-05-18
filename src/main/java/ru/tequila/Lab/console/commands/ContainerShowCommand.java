@@ -10,12 +10,12 @@ public class ContainerShowCommand implements Command {
 
     @Override
     public String name() {
-        return "container_show";
+        return "container_Show";
     }
     @Override
     public void execute(String[] args) {
         if (args.length < 2) {
-            System.out.println("Ошибка: введите ID");
+            System.out.println("Ошибка: введите ID через пробел");
             return;
         }
         service.showContainer(Long.parseLong(args[1]));

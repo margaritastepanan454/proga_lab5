@@ -15,7 +15,7 @@ public class BoxListCommand implements Command {
     @Override
     public void execute(String[] args) {
         if (args.length < 2) {
-            System.out.println("Ошибка: введите ID контейнера");
+            System.out.println("Ошибка: укажите ID контейнера, чтобы увидеть его коробки box_list 1)");
             return;
         }
         service.listBoxes(Long.parseLong(args[1]));

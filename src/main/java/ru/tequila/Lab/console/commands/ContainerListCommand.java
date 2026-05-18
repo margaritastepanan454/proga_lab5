@@ -11,7 +11,7 @@ public class ContainerListCommand implements Command {
     }
     @Override
     public String name() {
-        return "container_list";
+        return "container_List";
     }
     @Override
     public void execute(String[] args) {

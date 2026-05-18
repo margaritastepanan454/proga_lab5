@@ -11,7 +11,7 @@ public class ContainerStatusCommand implements Command {
     }
     @Override
     public String name() {
-        return "container_status";
+        return "container_Status";
     }
     @Override
     public void execute(String[] args) {

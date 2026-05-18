@@ -16,7 +16,7 @@ public class BoxAddCommand implements Command {
     @Override
     public void execute(String[] args) {
         if (args.length < 2) {
-            System.out.println("Ошибка: введите ID контейнера");
+            System.out.println("Ошибка: введите ID контейнера через пробел");
             return;
         }
         service.createBox(Long.parseLong(args[1]));
