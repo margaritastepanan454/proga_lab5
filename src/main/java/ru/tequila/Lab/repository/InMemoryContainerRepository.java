@@ -49,4 +49,11 @@ public class InMemoryContainerRepository {
         }
         return result;
     }
+    public void deleteContainerById(long id) {
+        containers.remove(id);
+    }
+
+    public void deleteBoxById(long id) {
+        boxes.remove(id);
+    }
 }

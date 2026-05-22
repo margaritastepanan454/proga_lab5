@@ -189,5 +189,36 @@ public class ContainerService {
         }
         b.isOccupied = false;
         System.out.println("Бокс ID " + b.id + " теперь свободен.");
-    }
-}
+    } // Конец метода freeBox
+
+    // ВСТАВЛЯЕМ СЮДА (ВНУТРЬ КЛАССА):
+    public void deleteContainer(long id) {
+        Container container = repo.findContainerById(id);
+        if (container == null) {
+            System.out.println("Ошибка: Контейнер с ID " + id + " не найден.");
+            return;
+        }
+
+        for (Box b : repo.findAllBoxes()) {
+            if (b.containerId == id) {
+                b.containerId = 0L;
+                repo.saveBox(b);
+            }
+        }
+
+        repo.deleteContainerById(id);
+        System.out.println("Контейнер с ID " + id + " успешно удалён. Все боксы из него сохранены (containerId = 0).");
+    } // Конец метода deleteContainer
+
+    public void deleteBox(long boxId) {
+        Box b = repo.findBoxById(boxId);
+        if (b == null) {
+            System.out.println("Ошибка: Бокс с ID " + boxId + " не найден.");
+            return;
+        }
+
+        repo.deleteBoxById(boxId);
+        System.out.println("Бокс с ID " + boxId + " успешно удалён из системы.");
+    } // Конец метода deleteBox
+
+} // <--- ВОТ ЭТА СКОБКА ДОЛЖНА БЫТЬ САМОЙ ПОСЛЕДНЕЙ В ФАЙЛЕ! Она закрывает весь class ContainerService

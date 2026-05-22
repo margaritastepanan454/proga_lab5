@@ -20,6 +20,7 @@ public class CommandProcessor {
         register(new BoxSearchCommand(s));
         register(new SamplePlaceCommand(s));
         register(new SampleFreeCommand(s));
+        register(new DeleteCommand(s));
         register(new HelpCommand());
     }
 
