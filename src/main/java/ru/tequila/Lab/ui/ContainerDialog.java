@@ -34,7 +34,6 @@ public class ContainerDialog extends Dialog<Container> {
 
         getDialogPane().setContent(grid);
 
-        // Преобразуем нажатие кнопки "Создать" в готовый объект модели
         setResultConverter(dialogButton -> {
             if (dialogButton == createButtonType) {
                 Container c = new Container();
@@ -45,7 +44,7 @@ public class ContainerDialog extends Dialog<Container> {
                 try {
                     c.capacity = Integer.parseInt(capacityField.getText().trim());
                 } catch (NumberFormatException e) {
-                    c.capacity = 0; // Валидатор поймает это значение
+                    c.capacity = 0;
                 }
                 c.status = ContainerStatus.ACTIVE;
                 c.occupiedSlots = 0;

@@ -10,7 +10,6 @@ import ru.tequila.Lab.domain.Container;
 public class LabStorageView {
     private final BorderPane root;
 
-    // Элементы управления, к которым контроллеру нужен будет доступ
     protected Button btnLoad, btnSave, btnRefresh;
     protected Button btnAddContainer, btnDeleteContainer;
     protected Button btnAddBox, btnDeleteBox, btnToggleOccupy;
@@ -27,20 +26,18 @@ public class LabStorageView {
     }
 
     private void initVisualComponents() {
-        // --- 1. ВЕРХНЯЯ ПАНЕЛЬ (Кнопки работы с файлами и обновление) ---
         HBox topMenu = new HBox(10);
         topMenu.setPadding(new Insets(10));
         topMenu.setStyle("-fx-background-color: #e0e0e0;");
 
-        btnLoad = new Button("Открыть файл...");
-        btnSave = new Button("Сохранить в файл...");
-        btnRefresh = new Button("🔄 Обновить (Refresh)");
+        btnLoad = new Button("Открыть файл");
+        btnSave = new Button("Сохранить в файл");
+        btnRefresh = new Button("Обновить (Refresh)");
         btnRefresh.setStyle("-fx-font-weight: bold;");
 
         topMenu.getChildren().addAll(btnLoad, btnSave, btnRefresh);
         root.setTop(topMenu);
 
-        // --- 2. ЛЕВАЯ ПАНЕЛЬ (Master: Список всех контейнеров) ---
         VBox masterLayout = new VBox(10);
         masterLayout.setPadding(new Insets(10));
         masterLayout.setPrefWidth(450);
@@ -52,14 +49,13 @@ public class LabStorageView {
         setupContainerTable();
 
         HBox masterActions = new HBox(10);
-        btnAddContainer = new Button("➕ Добавить контейнер");
-        btnDeleteContainer = new Button("❌ Удалить контейнер");
+        btnAddContainer = new Button("Добавить контейнер");
+        btnDeleteContainer = new Button("Удалить контейнер");
         masterActions.getChildren().addAll(btnAddContainer, btnDeleteContainer);
 
         masterLayout.getChildren().addAll(masterTitle, containerTable, masterActions);
         VBox.setVgrow(containerTable, Priority.ALWAYS);
 
-        // --- 3. ПРАВАЯ ПАНЕЛЬ (Detail: Информация о боксах внутри выбранного контейнера) ---
         VBox detailLayout = new VBox(10);
         detailLayout.setPadding(new Insets(10));
         detailLayout.setStyle("-fx-border-color: #cccccc; -fx-border-width: 0 0 0 1;");
@@ -78,16 +74,14 @@ public class LabStorageView {
         btnDeleteBox = new Button("🗑️ Удалить бокс");
         btnToggleOccupy = new Button("🔒 Занять/Освободить");
         detailActions.getChildren().addAll(btnAddBox, btnDeleteBox, btnToggleOccupy);
-        detailActions.setVisible(false); // Прячем панель действий, пока контейнер не выбран
+        detailActions.setVisible(false);
 
         detailLayout.getChildren().addAll(detailTitleLabel, containerInfoLabel, boxTable, detailActions);
         VBox.setVgrow(boxTable, Priority.ALWAYS);
 
-        // --- 4. РАЗДЕЛИТЕЛЬ СЛОЕВ (SplitPane) ---
         SplitPane splitPane = new SplitPane();
         splitPane.getItems().addAll(masterLayout, detailLayout);
-        splitPane.setDividerPositions(0.45); // Левая колонка занимает 45% экрана
-
+        splitPane.setDividerPositions(0.45);
         root.setCenter(splitPane);
     }
 
@@ -129,7 +123,6 @@ public class LabStorageView {
         boxTable.setPlaceholder(new Label("В этом контейнере пока нет боксов."));
     }
 
-    // Метод, с помощью которого JavaFX получит корневой узел разметки
     public BorderPane getRoot() {
         return root;
     }

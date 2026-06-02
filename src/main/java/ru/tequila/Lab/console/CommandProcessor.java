@@ -38,7 +38,6 @@ public class CommandProcessor {
                         System.out.println("Ошибка: Укажите путь к файлу. Пример: load storage.dat");
                         break;
                     }
-                    // Валидация перед загрузкой
                     FileValidator.validateFileStructure(args[1]);
                     fileStorageService.loadFromFile(args[1]);
                     break;
@@ -55,7 +54,6 @@ public class CommandProcessor {
                     }
                     containerService.deleteContainer(Long.parseLong(args[1]));
                     break;
-                // Остальные команды CLI (create-box, delete-box, etc.) вызываются аналогично
                 default:
                     System.out.println("Неизвестная команда. Введите 'help' для списка доступных команд.");
             }
