@@ -31,7 +31,6 @@ public class LabStorageController {
     }
 
     private void initEventHandlers() {
-        // Выбор контейнера в таблице
         view.containerTable.getSelectionModel().selectedItemProperty().addListener((obs, oldSel, newSel) -> {
             selectedContainer = newSel;
             if (newSel != null) {
@@ -43,7 +42,6 @@ public class LabStorageController {
             }
         });
 
-        // Привязка действий кнопок к компактным методам диспетчеризации
         view.btnRefresh.setOnAction(e -> refreshUIData());
         view.btnLoad.setOnAction(e -> handleLoadFile());
         view.btnSave.setOnAction(e -> handleSaveFile());

@@ -26,7 +26,6 @@ import java.util.Set;
                 throw new ValidationException("Ошибка целостности: Структура файла нарушена (коллекции не могут быть null).");
             }
 
-            // 1. Проверка валидности полей каждого контейнера
             for (Container c : containers.values()) {
                 if (c.name == null || c.name.trim().isEmpty()) {
                     throw new ValidationException("Ошибка валидации данных: Обнаружен контейнер ID " + c.id + " с пустым именем.");
@@ -39,7 +38,6 @@ import java.util.Set;
                 }
             }
 
-            // 2. Проверка валидности боксов и перекрестная проверка ссылочной целостности
             Set<String> uniqueSlots = new HashSet<>();
 
             for (Box b : boxes.values()) {
@@ -50,13 +48,11 @@ import java.util.Set;
                     throw new ValidationException("Ошибка валидации данных: Бокс ID " + b.id + " ссылается на некорректный слот.");
                 }
 
-                // Проверка Foreign Key (ссылочная целостность)
                 if (!containers.containsKey(b.containerId)) {
                     throw new ValidationException("Ошибка целостности данных: Бокс ID " + b.id +
                             " ссылается на несуществующий Контейнер ID " + b.containerId);
                 }
 
-                // Проверка на уникальность слота внутри одного контейнера
                 String slotKey = b.containerId + "_" + b.slotNumber;
                 if (!uniqueSlots.add(slotKey)) {
                     throw new ValidationException("Ошибка дублирования: Слот №" + b.slotNumber +
