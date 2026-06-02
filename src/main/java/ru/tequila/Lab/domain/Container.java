@@ -1,9 +1,9 @@
 package ru.tequila.Lab.domain;
-
+import java.io.Serializable;
 import java.time.Instant;
 import java.util.Objects;
 
-public class Container {
+public class Container implements Serializable{
     public long id;
     public String name;
     public String type;
