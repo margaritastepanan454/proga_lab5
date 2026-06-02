@@ -56,4 +56,20 @@ public class InMemoryContainerRepository {
     public void deleteBoxById(long id) {
         boxes.remove(id);
     }
+
+    public java.util.Map<Long, Container> getContainerMap() {
+        return this.containers;
+    }
+
+    public java.util.Map<Long, Box> getBoxMap() {
+        return this.boxes;
+    }
+
+    public void replaceData(java.util.Map<Long, Container> newContainers, java.util.Map<Long, Box> newBoxes) {
+        this.containers.clear();
+        this.boxes.clear();
+        if (newContainers != null) this.containers.putAll(newContainers);
+        if (newBoxes != null) this.boxes.putAll(newBoxes);
+    }
+
 }

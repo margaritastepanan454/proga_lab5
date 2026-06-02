@@ -22,6 +22,8 @@ public class HelpCommand implements Command {
         System.out.println(" sample_free - освободить контейнер от образца");
         System.out.println(" container_Status - проверить текущий статус контейнера свободен/занят");
         System.out.println(" delete - удалить сущность по ID (содержимое контейнеров сохраняется)");
+        System.out.println(" save [filename] - сохранить текущую базу данных в файл");
+        System.out.println(" load [filename] - загрузить базу данных из файла");
         System.out.println(" exit ");
     }
 }

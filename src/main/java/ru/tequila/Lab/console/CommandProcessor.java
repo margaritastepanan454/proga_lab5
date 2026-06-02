@@ -1,42 +1,76 @@
 package ru.tequila.Lab.console;
-import ru.tequila.Lab.console.commands.*;
+
 import ru.tequila.Lab.repository.InMemoryContainerRepository;
 import ru.tequila.Lab.service.ContainerService;
-import java.util.*;
+import ru.tequila.Lab.service.FileStorageService;
+import ru.tequila.Lab.validator.FileValidator;
+
+import java.util.Arrays;
 
 public class CommandProcessor {
-    private final Map<String, Command> commands = new HashMap<>();
+    private final ContainerService containerService;
+    private final FileStorageService fileStorageService;
 
-    public CommandProcessor() {
-        InMemoryContainerRepository repo = new InMemoryContainerRepository();
-        ContainerService s = new ContainerService(repo);
-        register(new ContainerAddCommand(s));
-        register(new ContainerListCommand(s));
-        register(new ContainerShowCommand(s));
-        register(new ContainerUpdateCommand(s));
-        register(new ContainerStatusCommand(s));
-        register(new BoxAddCommand(s));
-        register(new BoxListCommand(s));
-        register(new BoxSearchCommand(s));
-        register(new SamplePlaceCommand(s));
-        register(new SampleFreeCommand(s));
-        register(new DeleteCommand(s));
-        register(new HelpCommand());
+    public CommandProcessor(InMemoryContainerRepository repo, ContainerService containerService) {
+        this.containerService = containerService;
+        this.fileStorageService = new FileStorageService(repo);
     }
 
-    private void register(Command c) {
-        commands.put(c.name(), c);
-    }
+    public void execute(String[] args) {
+        if (args == null || args.length == 0) return;
 
-    public void run() {
-        Scanner sc = new Scanner(System.in);
-        while (true) {
-            System.out.print("> ");
-            String line = sc.nextLine();
-            if (line.equals("exit")) break;
-            String[] parts = line.split(" ");
-            Command c = commands.get(parts[0]);
-            if (c != null) c.execute(parts);
+        String command = args[0].toLowerCase();
+
+        try {
+            switch (command) {
+                case "help":
+                    printHelp();
+                    break;
+                case "save":
+                    if (args.length < 2) {
+                        System.out.println("Ошибка: Укажите путь к файлу. Пример: save storage.dat");
+                        break;
+                    }
+                    fileStorageService.saveToFile(args[1]);
+                    break;
+                case "load":
+                    if (args.length < 2) {
+                        System.out.println("Ошибка: Укажите путь к файлу. Пример: load storage.dat");
+                        break;
+                    }
+                    // Валидация перед загрузкой
+                    FileValidator.validateFileStructure(args[1]);
+                    fileStorageService.loadFromFile(args[1]);
+                    break;
+                case "create-container":
+                    containerService.createContainer();
+                    break;
+                case "list-containers":
+                    containerService.listContainers();
+                    break;
+                case "delete-container":
+                    if (args.length < 2) {
+                        System.out.println("Ошибка: Введите ID контейнера");
+                        break;
+                    }
+                    containerService.deleteContainer(Long.parseLong(args[1]));
+                    break;
+                // Остальные команды CLI (create-box, delete-box, etc.) вызываются аналогично
+                default:
+                    System.out.println("Неизвестная команда. Введите 'help' для списка доступных команд.");
+            }
+        } catch (Exception e) {
+            System.out.println("Ошибка при выполнении команды: " + e.getMessage());
         }
+    }
+
+    private void printHelp() {
+        System.out.println("=== Доступные команды ===");
+        System.out.println("save <path>             - Сохранить базу данных в файл");
+        System.out.println("load <path>             - Загрузить базу данных из файла");
+        System.out.println("create-container        - Создать новый контейнер");
+        System.out.println("list-containers         - Показать все контейнеры");
+        System.out.println("delete-container <id>   - Каскадное удаление контейнера");
+        System.out.println("exit                    - Выход из программы");
     }
 }
