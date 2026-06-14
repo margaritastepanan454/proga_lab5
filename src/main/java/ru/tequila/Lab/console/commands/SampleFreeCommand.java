@@ -1,23 +1,29 @@
 package ru.tequila.Lab.console.commands;
-import ru.tequila.Lab.console.Command;
+
+import ru.tequila.Lab.domain.Box;
 import ru.tequila.Lab.service.ContainerService;
 
-public class SampleFreeCommand implements Command {
+public class SampleFreeCommand {
     private final ContainerService service;
 
     public SampleFreeCommand(ContainerService service) {
         this.service = service;
     }
-    @Override
+
     public String name() {
         return "sample_free";
     }
-    @Override
+
     public void execute(String[] args) {
         if (args.length < 2) {
-            System.out.println("Ошибка: введите ID бокса");
+            System.out.println("Ошибка: укажите ID бокса для освобождения");
             return;
         }
-        service.freeBox(Long.parseLong(args[1]));
+        try {
+            long boxId = Long.parseLong(args[1]);
+            System.out.println("Команда sample_free переведена в UI. Используйте кнопку освобождения в интерфейсе.");
+        } catch (Exception e) {
+            System.out.println("Ошибка: " + e.getMessage());
+        }
     }
 }

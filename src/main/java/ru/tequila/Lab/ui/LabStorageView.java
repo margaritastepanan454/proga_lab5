@@ -1,127 +1,161 @@
 package ru.tequila.Lab.ui;
 
+import javafx.beans.property.SimpleObjectProperty;
 import javafx.geometry.Insets;
+import javafx.geometry.Pos;
 import javafx.scene.control.*;
-import javafx.scene.control.cell.PropertyValueFactory;
 import javafx.scene.layout.*;
-import ru.tequila.Lab.domain.Box;
 import ru.tequila.Lab.domain.Container;
+import ru.tequila.Lab.domain.Box;
 
 public class LabStorageView {
-    private final BorderPane root;
+    public BorderPane root;
 
-    protected Button btnLoad, btnSave, btnRefresh;
-    protected Button btnAddContainer, btnDeleteContainer;
-    protected Button btnAddBox, btnDeleteBox, btnToggleOccupy;
+    public TableView<Container> containerTable;
+    public Button btnAddContainer;
+    public Button btnDeleteContainer;
 
-    protected TableView<Container> containerTable;
-    protected TableView<Box> boxTable;
-    protected Label detailTitleLabel;
-    protected Label containerInfoLabel;
-    protected HBox detailActions;
+    public TableView<Box> boxTable;
+    public Button btnAddBox;
+    public Button btnDeleteBox;
+
+    public Button btnSave;
+    public Button btnLoad;
+    public Button btnRefresh;
+    public Button btnShowHistory; // НОВАЯ КНОПКА
+
+    public VBox detailActions;
+    public Label detailTitleLabel;
+    public Label containerInfoLabel;
+    public Button btnToggleOccupy;
+
+    public TextArea historyTextArea; // НОВОЕ ПОЛЕ ДЛЯ ВЫВОДА ЛОГОВ ИСТОРИИ
 
     public LabStorageView() {
-        root = new BorderPane();
         initVisualComponents();
     }
 
+    @SuppressWarnings("unchecked")
     private void initVisualComponents() {
-        HBox topMenu = new HBox(10);
-        topMenu.setPadding(new Insets(10));
-        topMenu.setStyle("-fx-background-color: #e0e0e0;");
+        root = new BorderPane();
+        root.setPadding(new Insets(15));
 
-        btnLoad = new Button("Открыть файл");
+        HBox topPanel = new HBox(10);
+        topPanel.setPadding(new Insets(0, 0, 15, 0));
+        topPanel.setAlignment(Pos.CENTER_LEFT);
+
         btnSave = new Button("Сохранить в файл");
-        btnRefresh = new Button("Обновить (Refresh)");
-        btnRefresh.setStyle("-fx-font-weight: bold;");
+        btnLoad = new Button("Загрузить из файла");
+        btnRefresh = new Button("Обновить");
+        btnShowHistory = new Button("История команд"); // Инициализация новой кнопки
 
-        topMenu.getChildren().addAll(btnLoad, btnSave, btnRefresh);
-        root.setTop(topMenu);
+        topPanel.getChildren().addAll(btnSave, btnLoad, btnRefresh, btnShowHistory);
+        root.setTop(topPanel);
 
-        VBox masterLayout = new VBox(10);
-        masterLayout.setPadding(new Insets(10));
-        masterLayout.setPrefWidth(450);
+        GridPane grid = new GridPane();
+        grid.setHgap(20);
+        grid.setVgap(10);
 
-        Label masterTitle = new Label("Лабораторные контейнеры");
-        masterTitle.setStyle("-fx-font-size: 14px; -fx-font-weight: bold;");
+        ColumnConstraints col1 = new ColumnConstraints();
+        col1.setPercentWidth(45);
+        ColumnConstraints col2 = new ColumnConstraints();
+        col2.setPercentWidth(55);
+        grid.getColumnConstraints().addAll(col1, col2);
+
+        VBox containerBox = new VBox(10);
+        Label lblContainers = new Label("Список контейнеров:");
+        lblContainers.setStyle("-fx-font-weight: bold; -fx-font-size: 14px; -fx-text-fill: #2c3e50;");
 
         containerTable = new TableView<>();
-        setupContainerTable();
 
-        HBox masterActions = new HBox(10);
-        btnAddContainer = new Button("Добавить контейнер");
-        btnDeleteContainer = new Button("Удалить контейнер");
-        masterActions.getChildren().addAll(btnAddContainer, btnDeleteContainer);
+        TableColumn<Container, Long> cIdCol = new TableColumn<>("ID");
+        cIdCol.setCellValueFactory(cellData -> new SimpleObjectProperty<>(cellData.getValue().id));
+        cIdCol.setPrefWidth(50);
 
-        masterLayout.getChildren().addAll(masterTitle, containerTable, masterActions);
-        VBox.setVgrow(containerTable, Priority.ALWAYS);
+        TableColumn<Container, String> cNameCol = new TableColumn<>("Название");
+        cNameCol.setCellValueFactory(cellData -> new SimpleObjectProperty<>(cellData.getValue().name));
+        cNameCol.setPrefWidth(140);
 
-        VBox detailLayout = new VBox(10);
-        detailLayout.setPadding(new Insets(10));
-        detailLayout.setStyle("-fx-border-color: #cccccc; -fx-border-width: 0 0 0 1;");
+        TableColumn<Container, Integer> cCapCol = new TableColumn<>("Вместимость");
+        cCapCol.setCellValueFactory(cellData -> new SimpleObjectProperty<>(cellData.getValue().capacity));
+        cCapCol.setPrefWidth(100);
 
-        detailTitleLabel = new Label("Детализация не выбрана");
-        detailTitleLabel.setStyle("-fx-font-size: 14px; -fx-font-weight: bold;");
+        containerTable.getColumns().addAll(cIdCol, cNameCol, cCapCol);
 
-        containerInfoLabel = new Label("Выберите контейнер слева для просмотра содержимого.");
+        HBox containerButtons = new HBox(10);
+        btnAddContainer = new Button("Добавить");
+        btnDeleteContainer = new Button("Удалить");
+        btnDeleteContainer.getStyleClass().add("button-delete");
+
+        containerButtons.getChildren().addAll(btnAddContainer, btnDeleteContainer);
+        containerBox.getChildren().addAll(lblContainers, containerTable, containerButtons);
+        grid.add(containerBox, 0, 0);
+
+        VBox rightLayout = new VBox(10);
+        Label lblBoxes = new Label("Управление элементами:");
+        lblBoxes.setStyle("-fx-font-weight: bold; -fx-font-size: 14px; -fx-text-fill: #2c3e50;");
+
+        HBox splitBoxPanel = new HBox(15);
+
+        boxTableSubLayout = new VBox(10);
+        boxTable = new TableView<>();
+
+        TableColumn<Box, Long> bIdCol = new TableColumn<>("ID");
+        bIdCol.setCellValueFactory(cellData -> new SimpleObjectProperty<>(cellData.getValue().id));
+        bIdCol.setPrefWidth(50);
+
+        TableColumn<Box, String> bNumCol = new TableColumn<>("Номер/Имя");
+        bNumCol.setCellValueFactory(cellData -> new SimpleObjectProperty<>(cellData.getValue().name));
+        bNumCol.setPrefWidth(90);
+
+        TableColumn<Box, Boolean> bOccCol = new TableColumn<>("Занят");
+        bOccCol.setCellValueFactory(cellData -> new SimpleObjectProperty<>(cellData.getValue().isOccupied));
+        bOccCol.setPrefWidth(70);
+
+        boxTable.getColumns().addAll(bIdCol, bNumCol, bOccCol);
+
+        HBox boxButtons = new HBox(10);
+        btnAddBox = new Button("Бокс");
+        btnDeleteBox = new Button("Удалить");
+        btnDeleteBox.getStyleClass().add("button-delete");
+        boxButtons.getChildren().addAll(btnAddBox, btnDeleteBox);
+        VBox boxTableLayout = new VBox(10);
+        boxTableLayout.getChildren().addAll(boxTable, boxButtons);
+
+        detailActions = new VBox(12);
+        detailActions.setPadding(new Insets(10));
+        detailActions.setStyle("-fx-background-color: #ffffff; -fx-border-color: #e2ede7; -fx-border-radius: 8px; -fx-background-radius: 8px;");
+        detailActions.setPrefWidth(220);
+
+        detailTitleLabel = new Label("Детальная инфо:");
+        detailTitleLabel.setStyle("-fx-font-weight: bold; -fx-text-fill: #2c3e50;");
+
+        containerInfoLabel = new Label("Выберите контейнер...");
         containerInfoLabel.setWrapText(true);
 
-        boxTable = new TableView<>();
-        setupBoxTable();
+        btnToggleOccupy = new Button("Изменить статус");
 
-        detailActions = new HBox(10);
-        btnAddBox = new Button("📦 Создать бокс");
-        btnDeleteBox = new Button("🗑️ Удалить бокс");
-        btnToggleOccupy = new Button("🔒 Занять/Освободить");
-        detailActions.getChildren().addAll(btnAddBox, btnDeleteBox, btnToggleOccupy);
-        detailActions.setVisible(false);
+        detailActions.getChildren().addAll(detailTitleLabel, containerInfoLabel, btnToggleOccupy);
 
-        detailLayout.getChildren().addAll(detailTitleLabel, containerInfoLabel, boxTable, detailActions);
-        VBox.setVgrow(boxTable, Priority.ALWAYS);
+        splitBoxPanel.getChildren().addAll(boxTableLayout, detailActions);
+        rightLayout.getChildren().addAll(lblBoxes, splitBoxPanel);
 
-        SplitPane splitPane = new SplitPane();
-        splitPane.getItems().addAll(masterLayout, detailLayout);
-        splitPane.setDividerPositions(0.45);
-        root.setCenter(splitPane);
+        grid.add(rightLayout, 1, 0);
+        root.setCenter(grid);
+
+        VBox bottomPanel = new VBox(5);
+        bottomPanel.setPadding(new Insets(10, 0, 0, 0));
+        Label lblHistory = new Label("Лог последних действий:");
+        lblHistory.setStyle("-fx-font-weight: bold; -fx-text-fill: #7f8c8d;");
+        historyTextArea = new TextArea();
+        historyTextArea.setPrefHeight(100);
+        historyTextArea.setEditable(false); // Запрещаем пользователю редактировать лог вручную
+        bottomPanel.getChildren().addAll(lblHistory, historyTextArea);
+
+        root.setBottom(bottomPanel);
     }
 
-    private void setupContainerTable() {
-        TableColumn<Container, Long> idCol = new TableColumn<>("ID");
-        idCol.setCellValueFactory(new PropertyValueFactory<>("id"));
-        idCol.setPrefWidth(50);
-
-        TableColumn<Container, String> nameCol = new TableColumn<>("Название");
-        nameCol.setCellValueFactory(new PropertyValueFactory<>("name"));
-        nameCol.setPrefWidth(150);
-
-        TableColumn<Container, String> typeCol = new TableColumn<>("Тип");
-        typeCol.setCellValueFactory(new PropertyValueFactory<>("type"));
-
-        TableColumn<Container, Integer> slotsCol = new TableColumn<>("Занято слотов");
-        slotsCol.setCellValueFactory(new PropertyValueFactory<>("occupiedSlots"));
-
-        containerTable.getColumns().addAll(idCol, nameCol, typeCol, slotsCol);
-        containerTable.setPlaceholder(new Label("Нет доступных контейнеров."));
-    }
-
-    private void setupBoxTable() {
-        TableColumn<Box, Long> idCol = new TableColumn<>("Box ID");
-        idCol.setCellValueFactory(new PropertyValueFactory<>("id"));
-        idCol.setPrefWidth(70);
-
-        TableColumn<Box, String> nameCol = new TableColumn<>("Название бокса");
-        nameCol.setCellValueFactory(new PropertyValueFactory<>("name"));
-        nameCol.setPrefWidth(150);
-
-        TableColumn<Box, Integer> slotCol = new TableColumn<>("Слот №");
-        slotCol.setCellValueFactory(new PropertyValueFactory<>("slotNumber"));
-
-        TableColumn<Box, Boolean> occupiedCol = new TableColumn<>("Занят");
-        occupiedCol.setCellValueFactory(new PropertyValueFactory<>("isOccupied"));
-
-        boxTable.getColumns().addAll(idCol, nameCol, slotCol, occupiedCol);
-        boxTable.setPlaceholder(new Label("В этом контейнере пока нет боксов."));
-    }
+    private VBox boxTableSubLayout;
 
     public BorderPane getRoot() {
         return root;

@@ -2,29 +2,26 @@ package ru.tequila.Lab.ui;
 
 import javafx.collections.FXCollections;
 import javafx.scene.control.*;
-import javafx.stage.FileChooser;
-import javafx.stage.Stage;
 import ru.tequila.Lab.domain.Box;
 import ru.tequila.Lab.domain.Container;
-import ru.tequila.Lab.repository.InMemoryContainerRepository;
+import ru.tequila.Lab.repository.ContainerRepository;
 import ru.tequila.Lab.service.ContainerService;
-import ru.tequila.Lab.service.FileStorageService;
-import ru.tequila.Lab.validator.ContainerValidator;
-import java.io.File;
+import ru.tequila.Lab.service.HistoryService;
+import java.util.List;
 
 public class LabStorageController {
     private final LabStorageView view;
-    private final InMemoryContainerRepository repository;
+    private final ContainerRepository repository;
     private final ContainerService containerService;
-    private final FileStorageService fileStorageService;
+    private final HistoryService historyService;
     private Container selectedContainer;
 
-    public LabStorageController(LabStorageView view, InMemoryContainerRepository repository,
-                                ContainerService containerService, FileStorageService fileStorageService) {
+    public LabStorageController(LabStorageView view, ContainerRepository repository,
+                                ContainerService containerService, HistoryService historyService) {
         this.view = view;
         this.repository = repository;
         this.containerService = containerService;
-        this.fileStorageService = fileStorageService;
+        this.historyService = historyService;
 
         initEventHandlers();
         refreshUIData();
@@ -43,13 +40,16 @@ public class LabStorageController {
         });
 
         view.btnRefresh.setOnAction(e -> refreshUIData());
-        view.btnLoad.setOnAction(e -> handleLoadFile());
-        view.btnSave.setOnAction(e -> handleSaveFile());
         view.btnAddContainer.setOnAction(e -> handleAddContainer());
         view.btnDeleteContainer.setOnAction(e -> handleDeleteContainer());
         view.btnAddBox.setOnAction(e -> handleAddBox());
         view.btnDeleteBox.setOnAction(e -> handleDeleteBox());
         view.btnToggleOccupy.setOnAction(e -> handleToggleOccupy());
+        view.btnShowHistory.setOnAction(e -> handleShowHistory());
+
+        // Отключаем кнопки работы с файлами
+        view.btnSave.setDisable(true);
+        view.btnLoad.setDisable(true);
     }
 
     private void refreshUIData() {
@@ -75,11 +75,17 @@ public class LabStorageController {
     }
 
     private void handleAddContainer() {
-        ContainerDialog dialog = new ContainerDialog(repository.nextContainerId());
+        ContainerDialog dialog = new ContainerDialog(0);
         dialog.showAndWait().ifPresent(container -> {
             try {
-                ContainerValidator.validateContainer(container);
+                if (container.name == null || container.name.trim().isEmpty()) {
+                    throw new IllegalArgumentException("Имя контейнера не может быть пустым!");
+                }
                 repository.saveContainer(container);
+
+                if (historyService != null) {
+                    historyService.addCommand("Добавлен новый контейнер в БД: " + container.name);
+                }
                 refreshUIData();
             } catch (Exception ex) {
                 showError("Ошибка валидации", ex.getMessage());
@@ -89,12 +95,17 @@ public class LabStorageController {
 
     private void handleAddBox() {
         if (selectedContainer == null) return;
-        BoxDialog dialog = new BoxDialog(repository.nextBoxId(), selectedContainer.id);
+        BoxDialog dialog = new BoxDialog(0, selectedContainer.id);
         dialog.showAndWait().ifPresent(box -> {
             try {
-                ContainerValidator.validateBox(box);
+                if (box.name == null || box.name.trim().isEmpty()) {
+                    throw new IllegalArgumentException("Название бокса не может быть пустым!");
+                }
                 repository.saveBox(box);
-                selectedContainer.occupiedSlots++;
+
+                if (historyService != null) {
+                    historyService.addCommand(String.format("В контейнер '%s' добавлен бокс: %s", selectedContainer.name, box.name));
+                }
                 refreshUIData();
             } catch (Exception ex) {
                 showError("Ошибка создания бокса", ex.getMessage());
@@ -104,16 +115,23 @@ public class LabStorageController {
 
     private void handleDeleteContainer() {
         if (selectedContainer == null) return;
-        containerService.deleteContainer(selectedContainer.id);
+        String name = selectedContainer.name;
+        repository.deleteContainerById(selectedContainer.id);
+
+        if (historyService != null) {
+            historyService.addCommand("Удален контейнер из БД: " + name);
+        }
         refreshUIData();
     }
 
     private void handleDeleteBox() {
         Box box = view.boxTable.getSelectionModel().getSelectedItem();
         if (box == null) return;
-        containerService.deleteBox(box.id);
-        if (selectedContainer != null && selectedContainer.occupiedSlots > 0) {
-            selectedContainer.occupiedSlots--;
+        String boxName = box.name;
+        repository.deleteBoxById(box.id);
+
+        if (historyService != null) {
+            historyService.addCommand("Удален бокс из БД: " + boxName);
         }
         refreshUIData();
     }
@@ -121,24 +139,28 @@ public class LabStorageController {
     private void handleToggleOccupy() {
         Box box = view.boxTable.getSelectionModel().getSelectedItem();
         if (box == null) return;
-        if (box.isOccupied) containerService.freeBox(box.id);
-        else containerService.placeSample(box.id);
+
+        box.isOccupied = !box.isOccupied;
+        repository.saveBox(box);
+
+        if (historyService != null) {
+            historyService.addCommand((box.isOccupied ? "Занят" : "Освобожден") + " бокс: " + box.name);
+        }
         refreshUIData();
     }
 
-    private void handleLoadFile() {
-        FileChooser chooser = new FileChooser();
-        File file = chooser.showOpenDialog(new Stage());
-        if (file != null) {
-            fileStorageService.loadFromFile(file.getAbsolutePath());
-            refreshUIData();
+    public void handleShowHistory() {
+        if (historyService == null) return;
+        List<String> history = historyService.getHistory();
+        StringBuilder sb = new StringBuilder("=== ИСТОРИЯ ПОСЛЕДНИХ КОМАНД ===\n");
+        if (history.isEmpty()) {
+            sb.append("История команд пуста.");
+        } else {
+            for (int i = 0; i < history.size(); i++) {
+                sb.append((i + 1)).append(". ").append(history.get(i)).append("\n");
+            }
         }
-    }
-
-    private void handleSaveFile() {
-        FileChooser chooser = new FileChooser();
-        File file = chooser.showSaveDialog(new Stage());
-        if (file != null) fileStorageService.saveToFile(file.getAbsolutePath());
+        if (view.historyTextArea != null) view.historyTextArea.setText(sb.toString());
     }
 
     private void showError(String header, String content) {

@@ -1,20 +1,33 @@
 package ru.tequila.Lab.console.commands;
 
-import ru.tequila.Lab.console.Command;
+import ru.tequila.Lab.domain.Container;
 import ru.tequila.Lab.service.ContainerService;
+import java.util.List;
 
-public class ContainerListCommand implements Command {
-
+public class ContainerListCommand {
     private final ContainerService service;
+
     public ContainerListCommand(ContainerService service) {
         this.service = service;
     }
-    @Override
+
     public String name() {
-        return "container_List";
+        return "container_list";
     }
-    @Override
+
     public void execute(String[] args) {
-        service.listContainers();
+        try {
+            List<Container> containers = service.getAllContainers();
+            if (containers.isEmpty()) {
+                System.out.println("Список контейнеров пуст.");
+            } else {
+                for (Container c : containers) {
+                    System.out.println(String.format("ID: %d | Имя: %s | Тип: %s | Статус: %s | Занято слотов: %d/%d",
+                            c.id, c.name, c.type, c.status, c.occupiedSlots, c.capacity));
+                }
+            }
+        } catch (Exception e) {
+            System.out.println("Ошибка при получении списка контейнеров: " + e.getMessage());
+        }
     }
 }

@@ -1,54 +1,38 @@
 package ru.tequila.Lab.console.commands;
 
-import ru.tequila.Lab.console.Command;
 import ru.tequila.Lab.service.ContainerService;
 
-public class DeleteCommand implements Command {
-    private final ContainerService containerService;
+public class DeleteCommand {
+    private final ContainerService service;
 
-    public DeleteCommand(ContainerService containerService) {
-        this.containerService = containerService;
+    public DeleteCommand(ContainerService service) {
+        this.service = service;
     }
 
-    @Override
     public String name() {
         return "delete";
     }
 
-    @Override
     public void execute(String[] args) {
         if (args.length < 3) {
-            System.out.println("Ошибка! Неверный формат команды.");
-            System.out.println("Используйте: delete [container / box / sample] [ID]");
+            System.out.println("Ошибка: используйте 'delete container <id>' или 'delete box <id>'");
             return;
         }
-
-        String entityType = args[1].toLowerCase();
-        long id;
         try {
-            id = Long.parseLong(args[2]);
-        } catch (NumberFormatException e) {
-            System.out.println("Ошибка: ID сущности должен быть целым числом!");
-            return;
-        }
+            String type = args[1].toLowerCase();
+            long id = Long.parseLong(args[2]);
 
-        switch (entityType) {
-            case "container":
-                containerService.deleteContainer(id);
-                break;
-
-            case "box":
-                containerService.deleteBox(id);
-                break;
-
-            case "sample":
-                System.out.println("Вызвана логика удаления образца с ID " + id);
-                break;
-
-            default:
-                System.out.println("Ошибка: неизвестный тип сущности '" + entityType + "'");
-                System.out.println("Допустимые типы: container, box, sample");
-                break;
+            if ("container".equals(type)) {
+                service.removeContainer(id);
+                System.out.println("Контейнер удален.");
+            } else if ("box".equals(type)) {
+                service.removeBox(id);
+                System.out.println("Бокс удален.");
+            } else {
+                System.out.println("Неизвестный тип для удаления: " + type);
+            }
+        } catch (Exception e) {
+            System.out.println("Ошибка при удалении: " + e.getMessage());
         }
     }
 }
