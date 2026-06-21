@@ -45,17 +45,17 @@ import java.util.Set;
                     throw new ValidationException("Ошибка валидации данных: Бокс ID " + b.id + " имеет пустое имя.");
                 }
                 if (b.slotNumber < 1) {
-                    throw new ValidationException("Ошибка валидации данных: Бокс ID " + b.id + " ссылается на некорректный слот.");
+                    throw new ValidationException("ошибка валидации данных: бокс ID " + b.id + " ссылается на некорректный слот.");
                 }
 
                 if (!containers.containsKey(b.containerId)) {
-                    throw new ValidationException("Ошибка целостности данных: Бокс ID " + b.id +
-                            " ссылается на несуществующий Контейнер ID " + b.containerId);
+                    throw new ValidationException("ошибка целостности данных: бокс ID " + b.id +
+                            " ссылается на несуществующий контейнер ID " + b.containerId);
                 }
 
                 String slotKey = b.containerId + "_" + b.slotNumber;
                 if (!uniqueSlots.add(slotKey)) {
-                    throw new ValidationException("Ошибка дублирования: Слот №" + b.slotNumber +
+                    throw new ValidationException("ошибка дублирования: слот №" + b.slotNumber +
                             " в контейнере ID " + b.containerId + " занят более чем одним боксом.");
                 }
             }

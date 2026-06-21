@@ -1,172 +1,124 @@
 package ru.tequila.Lab.ui;
 
-import javafx.collections.FXCollections;
+import javafx.application.Platform;
 import javafx.scene.control.*;
-import ru.tequila.Lab.domain.Box;
-import ru.tequila.Lab.domain.Container;
-import ru.tequila.Lab.repository.ContainerRepository;
-import ru.tequila.Lab.service.ContainerService;
+import ru.tequila.Lab.domain.*;
+import ru.tequila.Lab.repository.JdbcContainerRepository;
 import ru.tequila.Lab.service.HistoryService;
-import java.util.List;
+import ru.tequila.Lab.validator.ContainerValidator;
+import ru.tequila.Lab.validator.ValidationException;
 
 public class LabStorageController {
     private final LabStorageView view;
-    private final ContainerRepository repository;
-    private final ContainerService containerService;
-    private final HistoryService historyService;
-    private Container selectedContainer;
+    private final JdbcContainerRepository repo;
+    private final String currentUser;
+    private final HistoryService history = HistoryService.getInstance();
 
-    public LabStorageController(LabStorageView view, ContainerRepository repository,
-                                ContainerService containerService, HistoryService historyService) {
+    public LabStorageController(LabStorageView view, JdbcContainerRepository repo, String currentUser) {
         this.view = view;
-        this.repository = repository;
-        this.containerService = containerService;
-        this.historyService = historyService;
+        this.repo = repo;
+        this.currentUser = currentUser;
 
-        initEventHandlers();
-        refreshUIData();
-    }
+        view.containerTable.getSelectionModel().selectedItemProperty().addListener((obs, old, newVal) -> {
+            if (newVal != null) refreshBoxes(newVal.id);
+            else view.boxTable.getItems().clear();
+        });
 
-    private void initEventHandlers() {
-        view.containerTable.getSelectionModel().selectedItemProperty().addListener((obs, oldSel, newSel) -> {
-            selectedContainer = newSel;
-            if (newSel != null) {
-                updateDetailPanel(newSel);
-                view.detailActions.setVisible(true);
-            } else {
-                clearDetailPanel();
-                view.detailActions.setVisible(false);
+        view.btnDelete.setOnAction(e -> {
+            Box selBox = view.boxTable.getSelectionModel().getSelectedItem();
+            Container selCont = view.containerTable.getSelectionModel().getSelectedItem();
+
+            if (selBox != null) {
+                if (selBox.ownerUsername.equals(currentUser)) {
+                    repo.deleteBoxById(selBox.id);
+                    logAction("удален бокс" + selBox.name);
+                    refreshBoxes(selBox.containerId);
+                } else { showError("не твоё!"); }
+            }
+            else if (selCont != null) {
+                if (selCont.ownerUsername.equals(currentUser)) {
+                    repo.deleteContainerById(selCont.id);
+                    logAction("удалён контейнер + боксы" + selCont.name);
+                    refresh();
+                } else { showError("куда? не твоё!"); }
+            }
+            else {
+                showError("ничего не выбрано для удаления");
             }
         });
 
-        view.btnRefresh.setOnAction(e -> refreshUIData());
-        view.btnAddContainer.setOnAction(e -> handleAddContainer());
-        view.btnDeleteContainer.setOnAction(e -> handleDeleteContainer());
-        view.btnAddBox.setOnAction(e -> handleAddBox());
-        view.btnDeleteBox.setOnAction(e -> handleDeleteBox());
-        view.btnToggleOccupy.setOnAction(e -> handleToggleOccupy());
-        view.btnShowHistory.setOnAction(e -> handleShowHistory());
-
-        // Отключаем кнопки работы с файлами
-        view.btnSave.setDisable(true);
-        view.btnLoad.setDisable(true);
-    }
-
-    private void refreshUIData() {
-        view.containerTable.setItems(FXCollections.observableArrayList(repository.findAllContainers()));
-        if (selectedContainer != null) {
-            Container updated = repository.findContainerById(selectedContainer.id);
-            if (updated != null) updateDetailPanel(updated);
-            else clearDetailPanel();
-        }
-    }
-
-    private void updateDetailPanel(Container container) {
-        view.detailTitleLabel.setText("Контейнер: " + container.name);
-        view.containerInfoLabel.setText(String.format("Тип: %s | Локация: %s | Статус: %s | Слоты: %d/%d",
-                container.type, container.location, container.status, container.occupiedSlots, container.capacity));
-        view.boxTable.setItems(FXCollections.observableArrayList(repository.findBoxesByContainer(container.id)));
-    }
-
-    private void clearDetailPanel() {
-        selectedContainer = null;
-        view.detailTitleLabel.setText("Детализация не выбрана");
-        view.boxTable.getItems().clear();
-    }
-
-    private void handleAddContainer() {
-        ContainerDialog dialog = new ContainerDialog(0);
-        dialog.showAndWait().ifPresent(container -> {
-            try {
-                if (container.name == null || container.name.trim().isEmpty()) {
-                    throw new IllegalArgumentException("Имя контейнера не может быть пустым!");
+        view.btnAddContainer.setOnAction(e -> {
+            new ContainerDialog(0).showAndWait().ifPresent(c -> {
+                try {
+                    ContainerValidator.validateContainer(c);
+                    c.ownerUsername = currentUser;
+                    repo.saveContainer(c);
+                    logAction("создан контейнер: " + c.name);
+                    refresh();
+                } catch (ValidationException ex) {
+                    showError(ex.getMessage());
                 }
-                repository.saveContainer(container);
+            });
+        });
 
-                if (historyService != null) {
-                    historyService.addCommand("Добавлен новый контейнер в БД: " + container.name);
-                }
-                refreshUIData();
-            } catch (Exception ex) {
-                showError("Ошибка валидации", ex.getMessage());
-            }
+        view.btnStatus.setOnAction(e -> {
+            Container sel = view.containerTable.getSelectionModel().getSelectedItem();
+            if (sel != null && sel.ownerUsername.equals(currentUser)) {
+                new ChoiceDialog<>(sel.status, ContainerStatus.values()).showAndWait().ifPresent(st -> {
+                    repo.updateContainerStatus(sel.id, st);
+                    logAction("статус " + sel.name + " -> " + st);
+                    refresh();
+                });
+            } else { showError("нет прав. ну куда"); }
+        });
+
+        view.btnAddBox.setOnAction(e -> {
+            Container selected = view.containerTable.getSelectionModel().getSelectedItem();
+            if (selected == null) { showError("выберите контейнер"); return; }
+            new BoxDialog(0, selected.id).showAndWait().ifPresent(b -> {
+                b.ownerUsername = currentUser;
+                repo.saveBox(b);
+                logAction("добавлен бокс" + b.name);
+                refreshBoxes(selected.id);
+            });
+        });
+
+        view.btnBoxStatus.setOnAction(e -> {
+            Box b = view.boxTable.getSelectionModel().getSelectedItem();
+            if (b != null && b.ownerUsername.equals(currentUser)) {
+                repo.updateBoxOccupation(b.id, !b.isOccupied);
+                logAction("Бокс '" + b.name + "' изменен");
+                refreshBoxes(b.containerId);
+            } else { showError("Нет прав!"); }
+        });
+
+        view.btnLogout.setOnAction(e -> {
+            ((javafx.stage.Stage) view.getRoot().getScene().getWindow()).close();
+            Platform.runLater(() -> {
+                try { new LabStorageApp().start(new javafx.stage.Stage()); } catch (Exception ex) {}
+            });
+        });
+
+        refresh();
+    }
+
+    private void logAction(String msg) {
+        history.addCommand(msg);
+        Platform.runLater(() -> view.historyList.getItems().setAll(history.getHistory()));
+    }
+
+    public void refresh() {
+        Platform.runLater(() -> {
+            view.containerTable.getItems().setAll(repo.findAllContainers());
+            view.boxTable.getItems().clear();
         });
     }
 
-    private void handleAddBox() {
-        if (selectedContainer == null) return;
-        BoxDialog dialog = new BoxDialog(0, selectedContainer.id);
-        dialog.showAndWait().ifPresent(box -> {
-            try {
-                if (box.name == null || box.name.trim().isEmpty()) {
-                    throw new IllegalArgumentException("Название бокса не может быть пустым!");
-                }
-                repository.saveBox(box);
-
-                if (historyService != null) {
-                    historyService.addCommand(String.format("В контейнер '%s' добавлен бокс: %s", selectedContainer.name, box.name));
-                }
-                refreshUIData();
-            } catch (Exception ex) {
-                showError("Ошибка создания бокса", ex.getMessage());
-            }
-        });
+    private void refreshBoxes(long cid) {
+        Platform.runLater(() -> view.boxTable.getItems().setAll(repo.findBoxesByContainer(cid)));
     }
 
-    private void handleDeleteContainer() {
-        if (selectedContainer == null) return;
-        String name = selectedContainer.name;
-        repository.deleteContainerById(selectedContainer.id);
-
-        if (historyService != null) {
-            historyService.addCommand("Удален контейнер из БД: " + name);
-        }
-        refreshUIData();
-    }
-
-    private void handleDeleteBox() {
-        Box box = view.boxTable.getSelectionModel().getSelectedItem();
-        if (box == null) return;
-        String boxName = box.name;
-        repository.deleteBoxById(box.id);
-
-        if (historyService != null) {
-            historyService.addCommand("Удален бокс из БД: " + boxName);
-        }
-        refreshUIData();
-    }
-
-    private void handleToggleOccupy() {
-        Box box = view.boxTable.getSelectionModel().getSelectedItem();
-        if (box == null) return;
-
-        box.isOccupied = !box.isOccupied;
-        repository.saveBox(box);
-
-        if (historyService != null) {
-            historyService.addCommand((box.isOccupied ? "Занят" : "Освобожден") + " бокс: " + box.name);
-        }
-        refreshUIData();
-    }
-
-    public void handleShowHistory() {
-        if (historyService == null) return;
-        List<String> history = historyService.getHistory();
-        StringBuilder sb = new StringBuilder("=== ИСТОРИЯ ПОСЛЕДНИХ КОМАНД ===\n");
-        if (history.isEmpty()) {
-            sb.append("История команд пуста.");
-        } else {
-            for (int i = 0; i < history.size(); i++) {
-                sb.append((i + 1)).append(". ").append(history.get(i)).append("\n");
-            }
-        }
-        if (view.historyTextArea != null) view.historyTextArea.setText(sb.toString());
-    }
-
-    private void showError(String header, String content) {
-        Alert alert = new Alert(Alert.AlertType.ERROR);
-        alert.setHeaderText(header);
-        alert.setContentText(content);
-        alert.showAndWait();
+    private void showError(String msg) {
+        new Alert(Alert.AlertType.ERROR, msg).showAndWait();
     }
 }

@@ -1,259 +1,124 @@
 package ru.tequila.Lab.repository;
 
-import ru.tequila.Lab.domain.Box;
-import ru.tequila.Lab.domain.Container;
-import ru.tequila.Lab.domain.ContainerStatus;
-
+import ru.tequila.Lab.domain.*;
 import java.sql.*;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.*;
 
-public class JdbcContainerRepository implements ContainerRepository {
+public class JdbcContainerRepository {
+    private Connection conn;
 
     public JdbcContainerRepository() {
-        initDatabase();
+        try {
+            this.conn = DriverManager.getConnection("jdbc:sqlite:lab_storage.db");
+            Statement stmt = conn.createStatement();
+            stmt.execute("CREATE TABLE IF NOT EXISTS containers (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, type TEXT, location TEXT, capacity INTEGER, status TEXT, owner_username TEXT)");
+            stmt.execute("CREATE TABLE IF NOT EXISTS boxes (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, isOccupied INTEGER, container_id INTEGER, slotNumber INTEGER, owner_username TEXT)");
+        }
+        catch (SQLException e) {
+            e.printStackTrace();
+        }
     }
 
-    public void initDatabase() {
-        String createContainersTable = "CREATE TABLE IF NOT EXISTS containers (" +
-                "id INTEGER PRIMARY KEY AUTOINCREMENT, " +
-                "name TEXT NOT NULL, " +
-                "type TEXT NOT NULL, " +
-                "location TEXT, " +
-                "status TEXT, " +
-                "capacity INTEGER, " +
-                "occupied_slots INTEGER DEFAULT 0" +
-                ");";
+    public void saveContainer(Container c) {
+        String sql = "INSERT INTO containers(name, type, location, capacity, status, owner_username) VALUES(?,?,?,?,?,?)";
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, c.name); ps.setString(2, c.type); ps.setString(3, c.location);
+            ps.setInt(4, c.capacity); ps.setString(5, c.status.name()); ps.setString(6, c.ownerUsername);
+            ps.executeUpdate();
+        }
+        catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
 
-        String createBoxesTable = "CREATE TABLE IF NOT EXISTS boxes (" +
-                "id INTEGER PRIMARY KEY AUTOINCREMENT, " +
-                "container_id INTEGER, " +
-                "name TEXT NOT NULL, " +
-                "slot_number INTEGER, " +
-                "is_occupied INTEGER DEFAULT 0, " +
-                "FOREIGN KEY(container_id) REFERENCES containers(id) ON DELETE CASCADE" +
-                ");";
+    public void updateContainerStatus(long id, ContainerStatus status) {
+        try (PreparedStatement ps = conn.prepareStatement("UPDATE containers SET status = ? WHERE id = ?")) {
+            ps.setString(1, status.name());
+            ps.setLong(2, id);
+            ps.executeUpdate();
+        }
+        catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
 
-        try (Connection conn = DriverManager.getConnection("jdbc:sqlite:lab_storage.db");
-             Statement stmt = conn.createStatement()) {
-            stmt.execute("PRAGMA foreign_keys = ON;"); // Включаем каскадное удаление для SQLite
-            stmt.execute(createContainersTable);
-            stmt.execute(createBoxesTable);
+    public void saveBox(Box b) {
+        String sql = "INSERT INTO boxes(name, isOccupied, container_id, slotNumber, owner_username) VALUES(?,?,?,?,?)";
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, b.name); ps.setInt(2, b.isOccupied ? 1 : 0);
+            ps.setLong(3, b.containerId); ps.setInt(4, b.slotNumber); ps.setString(5, b.ownerUsername);
+            ps.executeUpdate();
+        }
+        catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
+
+    public void updateBoxOccupation(long id, boolean occupied) {
+        try (PreparedStatement ps = conn.prepareStatement("UPDATE boxes SET isOccupied = ? WHERE id = ?")) {
+            ps.setInt(1, occupied ? 1 : 0);
+            ps.setLong(2, id);
+            ps.executeUpdate();
         } catch (SQLException e) {
             e.printStackTrace();
         }
     }
 
-    @Override
-    public void saveContainer(Container c) {
-        if (c.id > 0) {
-            String sql = "UPDATE containers SET name = ?, type = ?, location = ?, status = ?, capacity = ?, occupied_slots = ? WHERE id = ?";
-            try (Connection conn = DriverManager.getConnection("jdbc:sqlite:lab_storage.db");
-                 PreparedStatement pstmt = conn.prepareStatement(sql)) {
-                pstmt.setString(1, c.name);
-                pstmt.setString(2, c.type);
-                pstmt.setString(3, c.location);
-                pstmt.setString(4, c.status.name());
-                pstmt.setInt(5, c.capacity);
-                pstmt.setInt(6, c.occupiedSlots);
-                pstmt.setLong(7, c.id);
-                pstmt.executeUpdate();
-            } catch (SQLException e) { e.printStackTrace(); }
-            return;
+    public void deleteContainerById(long id) {
+        try {
+            try (PreparedStatement ps1 = conn.prepareStatement("DELETE FROM boxes WHERE container_id = ?")) {
+                ps1.setLong(1, id);
+                ps1.executeUpdate();
+            }
+            try (PreparedStatement ps2 = conn.prepareStatement("DELETE FROM containers WHERE id = ?")) {
+                ps2.setLong(1, id);
+                ps2.executeUpdate();
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
         }
-
-        String sql = "INSERT INTO containers (name, type, location, status, capacity, occupied_slots) VALUES (?, ?, ?, ?, ?, ?)";
-        try (Connection conn = DriverManager.getConnection("jdbc:sqlite:lab_storage.db");
-             PreparedStatement pstmt = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
-            pstmt.setString(1, c.name);
-            pstmt.setString(2, c.type);
-            pstmt.setString(3, c.location);
-            pstmt.setString(4, c.status.name());
-            pstmt.setInt(5, c.capacity);
-            pstmt.setInt(6, c.occupiedSlots);
-            pstmt.executeUpdate();
-
-            try (ResultSet generatedKeys = pstmt.getGeneratedKeys()) {
-                if (generatedKeys.next()) {
-                    c.id = generatedKeys.getLong(1);
-                }
-            }
-        } catch (SQLException e) { e.printStackTrace(); }
     }
 
-    @Override
-    public void saveBox(Box b) {
-        if (b.id > 0) {
-            String sql = "UPDATE boxes SET container_id = ?, name = ?, slot_number = ?, is_occupied = ? WHERE id = ?";
-            try (Connection conn = DriverManager.getConnection("jdbc:sqlite:lab_storage.db");
-                 PreparedStatement pstmt = conn.prepareStatement(sql)) {
-                pstmt.setLong(1, b.containerId);
-                pstmt.setString(2, b.name);
-                pstmt.setInt(3, b.slotNumber);
-                pstmt.setInt(4, b.isOccupied ? 1 : 0);
-                pstmt.setLong(5, b.id);
-                pstmt.executeUpdate();
-            } catch (SQLException e) { e.printStackTrace(); }
-            return;
+    public void deleteBoxById(long id) {
+        try (PreparedStatement ps = conn.prepareStatement("DELETE FROM boxes WHERE id = ?")) {
+            ps.setLong(1, id);
+            ps.executeUpdate();
+        } catch (SQLException e) {
+            e.printStackTrace();
         }
-
-        String sql = "INSERT INTO boxes (container_id, name, slot_number, is_occupied) VALUES (?, ?, ?, ?)";
-        try (Connection conn = DriverManager.getConnection("jdbc:sqlite:lab_storage.db");
-             PreparedStatement pstmt = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
-            pstmt.setLong(1, b.containerId);
-            pstmt.setString(2, b.name);
-            pstmt.setInt(3, b.slotNumber);
-            pstmt.setInt(4, b.isOccupied ? 1 : 0);
-            pstmt.executeUpdate();
-
-            try (ResultSet generatedKeys = pstmt.getGeneratedKeys()) {
-                if (generatedKeys.next()) {
-                    b.id = generatedKeys.getLong(1);
-                }
-            }
-            updateOccupiedSlots(b.containerId);
-        } catch (SQLException e) { e.printStackTrace(); }
     }
 
-    @Override
-    public Container findContainerById(long id) {
-        String sql = "SELECT * FROM containers WHERE id = ?";
-        try (Connection conn = DriverManager.getConnection("jdbc:sqlite:lab_storage.db");
-             PreparedStatement pstmt = conn.prepareStatement(sql)) {
-            pstmt.setLong(1, id);
-            try (ResultSet rs = pstmt.executeQuery()) {
-                if (rs.next()) {
-                    Container c = new Container();
-                    c.id = rs.getLong("id");
-                    c.name = rs.getString("name");
-                    c.type = rs.getString("type");
-                    c.location = rs.getString("location");
-                    c.status = ContainerStatus.valueOf(rs.getString("status"));
-                    c.capacity = rs.getInt("capacity");
-                    c.occupiedSlots = rs.getInt("occupied_slots");
-                    return c;
-                }
-            }
-        } catch (SQLException e) { e.printStackTrace(); }
-        return null;
-    }
-
-    @Override
-    public Box findBoxById(long id) {
-        String sql = "SELECT * FROM boxes WHERE id = ?";
-        try (Connection conn = DriverManager.getConnection("jdbc:sqlite:lab_storage.db");
-             PreparedStatement pstmt = conn.prepareStatement(sql)) {
-            pstmt.setLong(1, id);
-            try (ResultSet rs = pstmt.executeQuery()) {
-                if (rs.next()) {
-                    Box b = new Box();
-                    b.id = rs.getLong("id");
-                    b.containerId = rs.getLong("container_id");
-                    b.name = rs.getString("name");
-                    b.slotNumber = rs.getInt("slot_number");
-                    b.isOccupied = rs.getInt("is_occupied") == 1;
-                    return b;
-                }
-            }
-        } catch (SQLException e) { e.printStackTrace(); }
-        return null;
-    }
-
-    @Override
     public List<Container> findAllContainers() {
         List<Container> list = new ArrayList<>();
-        String sql = "SELECT * FROM containers";
-        try (Connection conn = DriverManager.getConnection("jdbc:sqlite:lab_storage.db");
-             Statement stmt = conn.createStatement();
-             ResultSet rs = stmt.executeQuery(sql)) {
+        try (ResultSet rs = conn.createStatement().executeQuery("SELECT * FROM containers")) {
             while (rs.next()) {
                 Container c = new Container();
-                c.id = rs.getLong("id");
-                c.name = rs.getString("name");
-                c.type = rs.getString("type");
-                c.location = rs.getString("location");
+                c.id = rs.getLong("id"); c.name = rs.getString("name");
                 c.status = ContainerStatus.valueOf(rs.getString("status"));
-                c.capacity = rs.getInt("capacity");
-                c.occupiedSlots = rs.getInt("occupied_slots");
+                c.ownerUsername = rs.getString("owner_username");
                 list.add(c);
             }
-        } catch (SQLException e) { e.printStackTrace(); }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
         return list;
     }
 
-    @Override
-    public List<Box> findAllBoxes() {
+    public List<Box> findBoxesByContainer(long cid) {
         List<Box> list = new ArrayList<>();
-        String sql = "SELECT * FROM boxes";
-        try (Connection conn = DriverManager.getConnection("jdbc:sqlite:lab_storage.db");
-             Statement stmt = conn.createStatement();
-             ResultSet rs = stmt.executeQuery(sql)) {
+        try (PreparedStatement ps = conn.prepareStatement("SELECT * FROM boxes WHERE container_id = ?")) {
+            ps.setLong(1, cid);
+            ResultSet rs = ps.executeQuery();
             while (rs.next()) {
                 Box b = new Box();
-                b.id = rs.getLong("id");
-                b.containerId = rs.getLong("container_id");
-                b.name = rs.getString("name");
-                b.slotNumber = rs.getInt("slot_number");
-                b.isOccupied = rs.getInt("is_occupied") == 1;
+                b.id = rs.getLong("id"); b.name = rs.getString("name");
+                b.slotNumber = rs.getInt("slotNumber");
+                b.isOccupied = rs.getInt("isOccupied") == 1;
+                b.ownerUsername = rs.getString("owner_username");
+                b.containerId = cid;
                 list.add(b);
             }
         } catch (SQLException e) { e.printStackTrace(); }
         return list;
-    }
-
-    @Override
-    public List<Box> findBoxesByContainer(long containerId) {
-        List<Box> list = new ArrayList<>();
-        String sql = "SELECT * FROM boxes WHERE container_id = ?";
-        try (Connection conn = DriverManager.getConnection("jdbc:sqlite:lab_storage.db");
-             PreparedStatement pstmt = conn.prepareStatement(sql)) {
-            pstmt.setLong(1, containerId);
-            try (ResultSet rs = pstmt.executeQuery()) {
-                while (rs.next()) {
-                    Box b = new Box();
-                    b.id = rs.getLong("id");
-                    b.containerId = rs.getLong("container_id");
-                    b.name = rs.getString("name");
-                    b.slotNumber = rs.getInt("slot_number");
-                    b.isOccupied = rs.getInt("is_occupied") == 1;
-                    list.add(b);
-                }
-            }
-        } catch (SQLException e) { e.printStackTrace(); }
-        return list;
-    }
-
-    @Override
-    public void deleteContainerById(long id) {
-        String sql = "DELETE FROM containers WHERE id = ?";
-        try (Connection conn = DriverManager.getConnection("jdbc:sqlite:lab_storage.db");
-             PreparedStatement pstmt = conn.prepareStatement(sql)) {
-            pstmt.setLong(1, id);
-            pstmt.executeUpdate();
-        } catch (SQLException e) { e.printStackTrace(); }
-    }
-
-    @Override
-    public void deleteBoxById(long id) {
-        Box b = findBoxById(id);
-        String sql = "DELETE FROM boxes WHERE id = ?";
-        try (Connection conn = DriverManager.getConnection("jdbc:sqlite:lab_storage.db");
-             PreparedStatement pstmt = conn.prepareStatement(sql)) {
-            pstmt.setLong(1, id);
-            pstmt.executeUpdate();
-            if (b != null) {
-                updateOccupiedSlots(b.containerId);
-            }
-        } catch (SQLException e) { e.printStackTrace(); }
-    }
-
-    private void updateOccupiedSlots(long containerId) {
-        String sql = "UPDATE containers SET occupied_slots = (SELECT COUNT(*) FROM boxes WHERE container_id = ?) WHERE id = ?";
-        try (Connection conn = DriverManager.getConnection("jdbc:sqlite:lab_storage.db");
-             PreparedStatement pstmt = conn.prepareStatement(sql)) {
-            pstmt.setLong(1, containerId);
-            pstmt.setLong(2, containerId);
-            pstmt.executeUpdate();
-        } catch (SQLException e) { e.printStackTrace(); }
     }
 }

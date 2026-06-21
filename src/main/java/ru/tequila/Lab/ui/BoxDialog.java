@@ -9,10 +9,10 @@ import java.time.Instant;
 public class BoxDialog extends Dialog<Box> {
 
     public BoxDialog(long nextId, long containerId) {
-        setTitle("Новый бокс");
-        setHeaderText("Добавление бокса в контейнер ID " + containerId);
+        setTitle("новый бокс");
+        setHeaderText("добавление бокса в контейнер ID " + containerId);
 
-        ButtonType addButtonType = new ButtonType("Добавить", ButtonBar.ButtonData.OK_DONE);
+        ButtonType addButtonType = new ButtonType("добавить", ButtonBar.ButtonData.OK_DONE);
         getDialogPane().getButtonTypes().addAll(addButtonType, ButtonType.CANCEL);
 
         GridPane grid = new GridPane();
@@ -22,8 +22,8 @@ public class BoxDialog extends Dialog<Box> {
         boxNameField.setPromptText("Box-A");
         TextField slotField = new TextField("1");
 
-        grid.add(new Label("Название бокса:"), 0, 0); grid.add(boxNameField, 1, 0);
-        grid.add(new Label("Номер слота:"), 0, 1); grid.add(slotField, 1, 1);
+        grid.add(new Label("название бокса:"), 0, 0); grid.add(boxNameField, 1, 0);
+        grid.add(new Label("номер слота:"), 0, 1); grid.add(slotField, 1, 1);
 
         getDialogPane().setContent(grid);
 

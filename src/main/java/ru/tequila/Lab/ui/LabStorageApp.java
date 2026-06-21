@@ -3,33 +3,40 @@ package ru.tequila.Lab.ui;
 import javafx.application.Application;
 import javafx.scene.Scene;
 import javafx.stage.Stage;
-import ru.tequila.Lab.repository.ContainerRepository;
 import ru.tequila.Lab.repository.JdbcContainerRepository;
-import ru.tequila.Lab.service.ContainerService;
-import ru.tequila.Lab.service.HistoryService;
+import ru.tequila.Lab.repository.UserRepository;
+import ru.tequila.Lab.service.UserService;
+import java.sql.Connection;
+import java.sql.DriverManager;
 
 public class LabStorageApp extends Application {
-
     @Override
-    public void start(Stage primaryStage) {
-        ContainerRepository repository = new JdbcContainerRepository();
-        ContainerService containerService = new ContainerService(repository);
-        HistoryService historyService = HistoryService.getInstance();
-        LabStorageView view = new LabStorageView();
+    public void start(Stage stage) throws Exception {
+        Connection conn = DriverManager.getConnection("jdbc:sqlite:lab_storage.db");
+        UserRepository userRepo = new UserRepository(conn);
+        JdbcContainerRepository dataRepo = new JdbcContainerRepository();
+        UserService userService = new UserService(userRepo);
 
-        new LabStorageController(view, repository, containerService, historyService);
+        userService.register("admin", "admin");
 
-        Scene scene = new Scene(view.getRoot(), 1024, 600);
-        if (getClass().getResource("/style.css") != null) {
-            scene.getStylesheets().add(getClass().getResource("/style.css").toExternalForm());
-        }
+        LoginDialog loginDialog = new LoginDialog(userService);
+        var result = loginDialog.showAndWait();
 
-        primaryStage.setTitle("Lab Storage Control System (Strict OOP MVC & JDBC)");
-        primaryStage.setScene(scene);
-        primaryStage.show();
+        if (result.isPresent()) {
+            String user = result.get().getKey();
+            LabStorageView view = new LabStorageView();
+            new LabStorageController(view, dataRepo, user);
+
+            Scene scene = new Scene(view.getRoot(), 1100, 750);
+            try {
+                scene.getStylesheets().add(getClass().getResource("/style.css").toExternalForm());
+            } catch (Exception e) {}
+
+            stage.setScene(scene);
+            stage.setTitle("Lab Storage | " + user);
+            stage.show();
+        } else { System.exit(0); }
     }
 
-    public static void main(String[] args) {
-        launch(args);
-    }
+    public static void main(String[] args) { launch(args); }
 }
